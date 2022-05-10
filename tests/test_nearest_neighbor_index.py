@@ -6,7 +6,6 @@ import unittest
 
 from pynn import NearestNeighborIndex
 
-
 class NearestNeighborIndexTest(unittest.TestCase):
 
     def test_basic(self):
@@ -47,7 +46,7 @@ class NearestNeighborIndexTest(unittest.TestCase):
         # Run the baseline slow tests to get the expected values.
         start = time.time()
         for query_point in query_points:
-            expected.append(NearestNeighborIndex.find_nearest_slow(query_point, index_points))
+            expected.append(NearestNeighborIndex.find_nearest_naive(query_point, index_points))
         slow_time = time.time() - start
 
         # don't include the indexing time when benchmarking
