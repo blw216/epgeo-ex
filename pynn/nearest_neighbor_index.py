@@ -9,6 +9,35 @@ class ValidPoint(BaseModel):
     """
     points: List[Tuple[float, float]]
 
+class SpatialUtils:
+
+    @staticmethod
+    def find_nearest_naive(query_point: Tuple[float, float], haystack: ValidPoint) -> Tuple:
+        """
+        This naive method returns the point in the haystack that is closest to query_point.
+
+        :param query_point: The origin point from which the closest point will be found
+        :param haystack: The list of points to search against
+        :returns: Returns the nearest point as a tuple.
+        :raises TypeError: Input tuples must be (float, float)
+        """
+
+        min_dist = None
+        min_point = None
+
+        # For each point in the haystack
+        for point in haystack:
+            if point != query_point:
+                # Calculate the distance between the query point and haystack[i]
+                deltax = point[0] - query_point[0]
+                deltay = point[1] - query_point[1]
+                dist = math.sqrt((deltax * deltax) + (deltay * deltay))
+                # If the haystack[i] point is the closest, set min_point
+                if min_dist is None or dist < min_dist:
+                    min_dist = dist
+                    min_point = point
+        return min_point
+
 class SpatialHash:
     """
     This is a class for creating a spatial hash index using a common
@@ -20,7 +49,7 @@ class SpatialHash:
     In the case of the points created by rand_point(), the whole number can range
     from -999 to 999,therefore a cell_size of 100 will produce a maximum of
     361 buckets, as the range of potential values produced by
-    int(point/cell_size) is -9 <-- 0 --> 9, i.e. 19 total values multiplied by
+    int(point/cell_size=100) is -9 <-- 0 --> 9, i.e. 19 total values multiplied by
     19 potential combinations = 361.
 
     Attributes:
@@ -28,29 +57,22 @@ class SpatialHash:
         contents {tuple: list(tuple)}: key values pairs populated by insert_point
         neighbors {tuple: tuple}: Hash partition neighbor lookup table
     """
-    def __init__(self, cell_size: int) -> None:
+    def __init__(self, cell_size: int=100) -> None:
         self.cell_size = cell_size
         self.contents = {}
-        self.neighbors = {}
+        self.hash_neighbor = {}
 
-    def _hash(self, point: ValidPoint):
+    def _hash(self, point: Tuple[float, float]):
         hash = int(point[0]/self.cell_size), int(point[1]/self.cell_size)
         return hash
 
     def _find_hash_neighbor(self, idx_point: Tuple[float, float]) -> None:
-        min_dist = None
-        min_point = None
-        for point in self.contents.keys():
-            if point != idx_point:
-                deltax = point[0] - query_point[0]
-                deltay = point[1] - query_point[1]
-                dist = math.sqrt((deltax * deltax) + (deltay * deltay))
-                pass
+        hashes_to_check = [hashbin for hashbin in self.content.keys() if hashbin != idx_point]
+        closest_neighbor_hash = SpatialUtils.find_nearest_naive(idx_point, hashes_to_check)
+        self.hash_neighbor.setdefault(idx_point, closest_neighbor_hash)
 
     def insert_point(self, point: Tuple[float, float]) -> None:
-        print(point, self._hash(point))
         self.contents.setdefault(self._hash(point), []).append(point)
-
 
 class NearestNeighborIndex:
     """
@@ -69,49 +91,22 @@ class NearestNeighborIndex:
         :raises TypeError: Input list must be (float, float)
         """
         self.points = points
+        self.index = None
         try:
             ValidPoint(points=self.points)
         except ValidationError as e:
             print(e.json())
             raise TypeError("Incorrect data structure. Input must be List[Tuple[float, float]]")
 
-    @staticmethod
-    def build_index(method='hash'):
-        pass
+    def build_index(self, method: str='hash') -> None:
+        if method == 'hash':
+            sidx = SpatialHash()
+            for point in self.points:
+                sidx.insert_point(point)
+            self.index = sidx
 
-    @staticmethod
-    def find_nearest_naive(query_point: Tuple, haystack: List[Tuple[float, float]]) -> Tuple:
-        """
-        This naive method returns the point in the haystack that is closest to query_point.
-
-        :param query_point: The origin point from which the closest point will be found
-        :param haystack: The list of points to search against
-        :returns: Returns the nearest point as a tuple.
-        :raises TypeError: Input tuples must be (float, float)
-        """
-
-        min_dist = None
-        min_point = None
-
-        # For each point in the haystack
-        for point in haystack:
-            # Calculate the distance between the query point and haystack[i]
-            deltax = point[0] - query_point[0]
-            deltay = point[1] - query_point[1]
-            dist = math.sqrt((deltax * deltax) + (deltay * deltay))
-            # If the haystack[i] point is the closest, set min_point
-            if min_dist is None or dist < min_dist:
-                min_dist = dist
-                min_point = point
-
-        return min_point
-
-    def find_nearest_fast(self, query_point):
-        """
-        TODO comment me.
-        """
-
-        return NearestNeighborIndex.find_nearest_naive(query_point, self.points)
-
-        # TODO implement me so this class runs much faster.
-        # return self.find_nearest_fast(from_point)
+    def find_nearest_fast(self, query_point: Tuple[float, float], haystack: ValidPoint) -> Tuple:
+        query_point_hash = self.index._hash(query_point)
+        hash_bin_points = self.index.contents[query_point_hash]
+        nearest_neighbor = SpatialUtils.find_nearest_naive(query_point, hash_bin_points)
+        return nearest_neighbor
