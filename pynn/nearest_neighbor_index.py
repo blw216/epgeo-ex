@@ -1,4 +1,5 @@
 import math
+from shapely.geometry import Polygon, Point
 from pydantic import BaseModel, ValidationError
 from typing import *
 
@@ -50,7 +51,7 @@ class SpatialHash:
     from -999 to 999,therefore a cell_size of 100 will produce a maximum of
     361 buckets, as the range of potential values produced by
     int(point/cell_size=100) is -9 <-- 0 --> 9, i.e. 19 total values multiplied by
-    19 potential combinations = 361.
+    19 potential combinations = 361 hash partitions.
 
     Attributes:
         cell_size (int): the cell and hash partition size
@@ -60,19 +61,16 @@ class SpatialHash:
     def __init__(self, cell_size: int=100) -> None:
         self.cell_size = cell_size
         self.contents = {}
-        self.hash_neighbor = {}
+        self.hash_polygons = []
 
     def _hash(self, point: Tuple[float, float]):
         hash = int(point[0]/self.cell_size), int(point[1]/self.cell_size)
         return hash
 
-    def _find_hash_neighbor(self, idx_point: Tuple[float, float]) -> None:
-        hashes_to_check = [hashbin for hashbin in self.content.keys() if hashbin != idx_point]
-        closest_neighbor_hash = SpatialUtils.find_nearest_naive(idx_point, hashes_to_check)
-        self.hash_neighbor.setdefault(idx_point, closest_neighbor_hash)
-
     def insert_point(self, point: Tuple[float, float]) -> None:
-        self.contents.setdefault(self._hash(point), []).append(point)
+        hash_bin = self._hash(point)
+        hash_bin_polygon = Polygon([Point(hash_bin[0])])
+        self.contents.setdefault(hash_bin, []).append(point)
 
 class NearestNeighborIndex:
     """
@@ -81,7 +79,7 @@ class NearestNeighborIndex:
     Atributes:
         points (tuple(float, float)): The 2D array of points to be indexed.
     """
-    def __init__(self, points) -> None:
+    def __init__(self, points: ValidPoint) -> None:
         """
         Inits NearestNeighborIndex class.
         Takes an array of 2d tuples (float, float) as input points to be indexed.
@@ -92,6 +90,7 @@ class NearestNeighborIndex:
         """
         self.points = points
         self.index = None
+        self.cell_size = None
         try:
             ValidPoint(points=self.points)
         except ValidationError as e:
@@ -99,13 +98,20 @@ class NearestNeighborIndex:
             raise TypeError("Incorrect data structure. Input must be List[Tuple[float, float]]")
 
     def build_index(self, method: str='hash') -> None:
+        """
+        This method creates the spatial index for the points attribute of the
+        NearestNeighborIndex object.
+
+        :param str method: The spatial indexing method to be used. Default 'hash'
+        """
         if method == 'hash':
             sidx = SpatialHash()
             for point in self.points:
                 sidx.insert_point(point)
             self.index = sidx
+            self.cell_size = sidx.cell_size
 
-    def find_nearest_fast(self, query_point: Tuple[float, float], haystack: ValidPoint) -> Tuple:
+    def find_nearest_fast(self, query_point: Tuple[float, float]) -> Tuple:
         query_point_hash = self.index._hash(query_point)
         hash_bin_points = self.index.contents[query_point_hash]
         nearest_neighbor = SpatialUtils.find_nearest_naive(query_point, hash_bin_points)

@@ -1,27 +1,33 @@
-from nearest_neighbor_index import SpatialHash, NearestNeighborIndex
+from nearest_neighbor_index import SpatialHash, NearestNeighborIndex, SpatialUtils
 import random
+from kdtree import kdtree, find_nearest_neighbor
+import time
+import numpy as np
 
 def rand_point() -> tuple:
     return (random.uniform(-1000, 1000), random.uniform(-1000, 1000))
 
-randpts = [rand_point() for _ in range(10000)]
+querypts = [rand_point() for _ in range(1000)]
+haystack = [rand_point() for _ in range(100000)]
 
-other_pts = [rand_point() for _ in range(100)]
+index = kdtree(haystack)
 
-cell_size = 100
-spatial_hash = SpatialHash(cell_size)
+start = time.time()
+slow_results = []
+for pt in querypts:
+    slow = SpatialUtils.find_nearest_naive(pt, haystack)
+    slow_results.append(slow)
+end = time.time()
+slow_time = end-start
+print(f"Slow: {slow_time}")
 
-hashedpts = [spatial_hash.insert_point(pt) for pt in randpts]
-
-print(f"Length of random points: {len(hashedpts)}")
-print(f"Length of hash buckets: {len(set(spatial_hash.contents.keys()))}")
-
-
-nni = NearestNeighborIndex(randpts)
-print(f"Length of nni.points: {len(nni.points)}")
-nni.build_index()
-print(nni.index)
-
-for pt in randpts:
-    nn = nni.find_nearest_fast(pt, other_pts)
-    print(pt, nn)
+start=time.time()
+fast_results = []
+for pt in querypts:
+    fast = find_nearest_neighbor(index, pt)
+    fast_results.append(fast)
+end=time.time()
+fast_time=end-start
+print(f"fast: {fast_time}")
+print(f"fast/slow array equality: {np.array_equal(np.array(slow_results), np.array(fast_results))}")
+print(f"Speedup: {slow_time/fast_time:0.2f}")
