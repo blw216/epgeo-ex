@@ -1,5 +1,3 @@
-"""nn_search_test"""
-
 import random
 import time
 import unittest
@@ -10,8 +8,8 @@ class NearestNeighborTest(unittest.TestCase):
 
     def test_basic(self):
         """
-        test_basic tests a handful of nearest neighbor queries to make sure they return the right
-        result.
+        This test compares a handful of NN index search results to several
+        hard-coded correct values.
         """
 
         test_points = [
@@ -31,8 +29,10 @@ class NearestNeighborTest(unittest.TestCase):
 
     def test_benchmark(self):
         """
-        test_benchmark tests a bunch of values using the slow and fast version of the index
-        to determine the effective speedup.
+        This test demonstrates the optimization of the spatial index, and
+        asserts that the list of nearest neighbors identified by the
+        optimized index search is the same as the list of nearest neighbors
+        identified by the brute force approach.
         """
 
         def rand_point(): return (random.uniform(-1000, 1000), random.uniform(-1000, 1000))
@@ -58,7 +58,8 @@ class NearestNeighborTest(unittest.TestCase):
             actual.append(uut.search_index(query_point))
         new_time = time.time() - start
 
+        # Assert that the list of actual nn values == expected nn values
+        self.assertEqual(expected, actual)
         print(f"slow time: {slow_time:0.2f}sec")
         print(f"new time: {new_time:0.2f}sec")
         print(f"speedup: {(slow_time / new_time):0.2f}x")
-        self.assertEqual(expected, actual)

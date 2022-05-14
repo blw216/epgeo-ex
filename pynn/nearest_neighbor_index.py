@@ -39,7 +39,7 @@ class SpatialUtils:
     def _build_kdtree(points: ValidPointsIterable) -> KDBinaryTree:
         """
         This method defines the binary tree data structure and recursively
-        calls 'build' to construct a k-d tree spatial index on the provided
+        calls the 'build' method to construct a k-d tree spatial index on the provided
         set of points.
 
         :param points: Iterable of points as defined by the ValidPointsIterable
@@ -49,7 +49,6 @@ class SpatialUtils:
         """
 
         k = len(points[0])
-        print(f"Raw points: {points}\n")
         BT = collections.namedtuple("BT", ["value", "left", "right"])
 
         def _build(points: ValidPointsIterable, depth: int):
@@ -61,9 +60,7 @@ class SpatialUtils:
                 return None
 
             points.sort(key=operator.itemgetter(depth % k))
-            print(points)
             middle = len(points) // 2
-            print(f"Middle: {middle}")
             BTNode = BT(
                 value = points[middle],
                 left = _build(
@@ -75,8 +72,6 @@ class SpatialUtils:
                     depth=depth+1,
                 ),
             )
-            print(BTNode)
-            print("\n")
             return BTNode
 
         # Recursively build the k-d tree starting at depth of 0
@@ -99,7 +94,7 @@ class SpatialUtils:
             nonlocal best
 
             if tree is None:
-                return
+                return None
 
             distance = SpatialUtils.calculate_distance(tree.value, point)
             if best is None or distance < best.distance:
@@ -159,12 +154,21 @@ class SpatialUtils:
         return float(sum((i-j)**2 for i, j in zip(point1, point2)))
 
 class NearestNeighbor():
-    def __init__(self, points: ValidPointsIterable) -> None:
-        self.points = points
+    def __init__(self, points) -> None:
+        try:
+            points = ValidPointsIterable(points=points)
+            self.points = points.points
+        except ValidationError as e:
+            print(e.json())
     def build_index(self, method: str = "kdtree") -> None:
         if method == "kdtree":
             self.sidx = SpatialUtils()._build_kdtree(self.points)
         return self
     def search_index(self, query_point: ValidPoint) -> ValidPoint:
+        try:
+            query_point = ValidPoint(point=query_point)
+            query_point = query_point.point
+        except ValidationError as e:
+            print(e.json())
         result = SpatialUtils()._find_nearest_neighbor_kdtree(self.sidx, query_point)
         return result
