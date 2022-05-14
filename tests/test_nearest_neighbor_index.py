@@ -4,9 +4,9 @@ import random
 import time
 import unittest
 
-from pynn import NearestNeighborIndex
+from pynn import NearestNeighbor, SpatialUtils
 
-class NearestNeighborIndexTest(unittest.TestCase):
+class NearestNeighborTest(unittest.TestCase):
 
     def test_basic(self):
         """
@@ -23,11 +23,12 @@ class NearestNeighborIndexTest(unittest.TestCase):
             (42, 3.14159),
         ]
 
-        uut = NearestNeighborIndex(test_points)
+        uut = NearestNeighbor(test_points)
+        uut.build_index()
 
-        self.assertEqual((1, 0), uut.find_nearest_fast((0, 0)))
-        self.assertEqual((-1000, 20), uut.find_nearest_fast((-2000, 0)))
-        self.assertEqual((42, 3.14159), uut.find_nearest_fast((40, 3)))
+        self.assertEqual((1, 0), uut.search_index((0, 0)))
+        self.assertEqual((-1000, 20), uut.search_index((-2000, 0)))
+        self.assertEqual((42, 3.14159), uut.search_index((40, 3)))
 
     def test_benchmark(self):
         """
@@ -46,18 +47,20 @@ class NearestNeighborIndexTest(unittest.TestCase):
         # Run the baseline slow tests to get the expected values.
         start = time.time()
         for query_point in query_points:
-            expected.append(NearestNeighborIndex.find_nearest_naive(query_point, index_points))
+            expected.append(SpatialUtils().find_nearest_naive(query_point, index_points))
         slow_time = time.time() - start
 
-        # don't include the indexing time when benchmarking
-        uut = NearestNeighborIndex(index_points)
+        # Don't include the indexing time when benchmarking
+        uut = NearestNeighbor(index_points)
+        uut.build_index()
 
         # Run the indexed tests
         start = time.time()
         for query_point in query_points:
-            actual.append(uut.find_nearest_fast(query_point))
+            actual.append(uut.search_index(query_point))
         new_time = time.time() - start
 
         print(f"slow time: {slow_time:0.2f}sec")
         print(f"new time: {new_time:0.2f}sec")
         print(f"speedup: {(slow_time / new_time):0.2f}x")
+        self.assertEqual(expected, actual)

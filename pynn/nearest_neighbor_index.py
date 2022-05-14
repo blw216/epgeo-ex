@@ -75,7 +75,7 @@ class SpatialUtils:
                 ),
             )
 
-        # Recursively build the k-d tree starting at depth of 0    
+        # Recursively build the k-d tree starting at depth of 0
         tree = _build(points=list(points), depth=0)
         return tree
 

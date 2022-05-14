@@ -1,2 +1,2 @@
 
-from .nearest_neighbor_index import NearestNeighbor
+from .nearest_neighbor_index import NearestNeighbor, SpatialUtils
