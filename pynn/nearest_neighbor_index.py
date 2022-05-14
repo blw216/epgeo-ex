@@ -49,7 +49,7 @@ class SpatialUtils:
         """
 
         k = len(points[0])
-
+        print(f"Raw points: {points}\n")
         BT = collections.namedtuple("BT", ["value", "left", "right"])
 
         def _build(points: ValidPointsIterable, depth: int):
@@ -61,9 +61,10 @@ class SpatialUtils:
                 return None
 
             points.sort(key=operator.itemgetter(depth % k))
+            print(points)
             middle = len(points) // 2
-
-            return BT(
+            print(f"Middle: {middle}")
+            BTNode = BT(
                 value = points[middle],
                 left = _build(
                     points=points[:middle],
@@ -74,6 +75,9 @@ class SpatialUtils:
                     depth=depth+1,
                 ),
             )
+            print(BTNode)
+            print("\n")
+            return BTNode
 
         # Recursively build the k-d tree starting at depth of 0
         tree = _build(points=list(points), depth=0)
@@ -160,6 +164,7 @@ class NearestNeighbor():
     def build_index(self, method: str = "kdtree") -> None:
         if method == "kdtree":
             self.sidx = SpatialUtils()._build_kdtree(self.points)
+        return self
     def search_index(self, query_point: ValidPoint) -> ValidPoint:
         result = SpatialUtils()._find_nearest_neighbor_kdtree(self.sidx, query_point)
         return result

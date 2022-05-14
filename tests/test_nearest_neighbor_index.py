@@ -23,8 +23,7 @@ class NearestNeighborTest(unittest.TestCase):
             (42, 3.14159),
         ]
 
-        uut = NearestNeighbor(test_points)
-        uut.build_index()
+        uut = NearestNeighbor(test_points).build_index()
 
         self.assertEqual((1, 0), uut.search_index((0, 0)))
         self.assertEqual((-1000, 20), uut.search_index((-2000, 0)))
@@ -51,8 +50,7 @@ class NearestNeighborTest(unittest.TestCase):
         slow_time = time.time() - start
 
         # Don't include the indexing time when benchmarking
-        uut = NearestNeighbor(index_points)
-        uut.build_index()
+        uut = NearestNeighbor(index_points).build_index()
 
         # Run the indexed tests
         start = time.time()
