@@ -1,6 +1,5 @@
-from nearest_neighbor_index import SpatialHash, NearestNeighborIndex, SpatialUtils
+from nearest_neighbor_index import NearestNeighbor, SpatialUtils
 import random
-from kdtree import kdtree, find_nearest_neighbor
 import time
 import numpy as np
 
@@ -8,9 +7,7 @@ def rand_point() -> tuple:
     return (random.uniform(-1000, 1000), random.uniform(-1000, 1000))
 
 querypts = [rand_point() for _ in range(1000)]
-haystack = [rand_point() for _ in range(100000)]
-
-index = kdtree(haystack)
+haystack = [rand_point() for _ in range(1000)]
 
 start = time.time()
 slow_results = []
@@ -21,10 +18,13 @@ end = time.time()
 slow_time = end-start
 print(f"Slow: {slow_time}")
 
+nns = NearestNeighbor(haystack)
+nns.build_index()
+
 start=time.time()
 fast_results = []
 for pt in querypts:
-    fast = find_nearest_neighbor(index, pt)
+    fast = nns.search_index(pt)
     fast_results.append(fast)
 end=time.time()
 fast_time=end-start

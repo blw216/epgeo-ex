@@ -1,21 +1,125 @@
 import math
-from shapely.geometry import Polygon, Point
+import collections
+import operator
 from pydantic import BaseModel, ValidationError
 from typing import *
 
 class ValidPoint(BaseModel):
     """
-    This is a Pydantic class to validate the input for NearestNeighborIndex
-    and SpatialHash classes.
+    This is a Pydantic class to valid the input for data structures that require
+    a valid tuple of x: float, y: float values.
+    """
+    point: Tuple[float, float]
+
+class ValidPointsIterable(BaseModel):
+    """
+    This is a Pydantic class to validate the input for the NearestNeighbor
+    class.
     """
     points: List[Tuple[float, float]]
+
+class KDBinaryTree(BaseModel):
+    """
+    This is a Pydantic class that ducments the base node data structure for
+    a binary k-d tree.
+    """
+    BT = collections.namedtuple("BT", ["value", "left", "right"])
+
+class NNClosestNeighbor(BaseModel):
+    """
+    This is a Pydantic class to document the data structure for the current
+    closest point relative to a given query point in a NN search traversing
+    a k-d tree.
+    """
+    NNRecord = collections.namedtuple("NNRecord", ["point", "distance"])
 
 class SpatialUtils:
 
     @staticmethod
-    def find_nearest_naive(query_point: Tuple[float, float], haystack: ValidPoint) -> Tuple:
+    def _build_kdtree(points: ValidPointsIterable) -> KDBinaryTree:
+        """
+        This method defines the binary tree data structure and recursively
+        calls 'build' to construct a k-d tree spatial index on the provided
+        set of points.
+
+        :param points: Iterable of points as defined by the ValidPointsIterable
+        class.
+        :returns: K-dimensional binary tree as defined by the KDBinaryTree
+        class.
+        """
+
+        k = len(points[0])
+
+        BT = collections.namedtuple("BT", ["value", "left", "right"])
+
+        def _build(points: ValidPointsIterable, depth: int):
+            """
+            This function recursively constructs a k-dimensional tree from a
+            given set of points.
+            """
+            if len(points) == 0:
+                return None
+
+            points.sort(key=operator.itemgetter(depth % k))
+            middle = len(points) // 2
+
+            return BT(
+                value = points[middle],
+                left = _build(
+                    points=points[:middle],
+                    depth=depth+1,
+                ),
+                right = _build(
+                    points=points[middle+1:],
+                    depth=depth+1,
+                ),
+            )
+
+        # Recursively build the k-d tree starting at depth of 0    
+        tree = _build(points=list(points), depth=0)
+        return tree
+
+    @staticmethod
+    def _find_nearest_neighbor_kdtree(tree: KDBinaryTree, point: ValidPoint) -> ValidPoint:
+        """Find the nearest neighbor in a k-d tree for a given
+        point.
+        """
+        k = len(point)
+        NNRecord = collections.namedtuple("NNRecord", ["point", "distance"])
+
+        best = None
+        def _search(tree: KDBinaryTree, depth: int):
+            """Recursively search through the k-d tree to find the
+            nearest neighbor.
+            """
+            nonlocal best
+
+            if tree is None:
+                return
+
+            distance = SpatialUtils.calculate_distance(tree.value, point)
+            if best is None or distance < best.distance:
+                best = NNRecord(point=tree.value, distance=distance)
+
+            axis = depth % k
+            diff = point[axis] - tree.value[axis]
+            if diff <= 0:
+                close, away = tree.left, tree.right
+            else:
+                close, away = tree.right, tree.left
+
+            _search(tree=close, depth=depth+1)
+            if diff**2 < best.distance:
+                _search(tree=away, depth=depth+1)
+
+        _search(tree=tree, depth=0)
+        return best.point
+
+    @staticmethod
+    def find_nearest_naive(query_point: ValidPoint, haystack: ValidPointsIterable) -> ValidPoint:
         """
         This naive method returns the point in the haystack that is closest to query_point.
+        This method was left unchanged to preserve integrity of the test(s).
 
         :param query_point: The origin point from which the closest point will be found
         :param haystack: The list of points to search against
@@ -39,80 +143,23 @@ class SpatialUtils:
                     min_point = point
         return min_point
 
-class SpatialHash:
-    """
-    This is a class for creating a spatial hash index using a common
-    algorithm typically used for object collision in computer graphics.
-
-    Hash bucket size controlled by cell_size attribute, and must be tuned per
-    data set.
-
-    In the case of the points created by rand_point(), the whole number can range
-    from -999 to 999,therefore a cell_size of 100 will produce a maximum of
-    361 buckets, as the range of potential values produced by
-    int(point/cell_size=100) is -9 <-- 0 --> 9, i.e. 19 total values multiplied by
-    19 potential combinations = 361 hash partitions.
-
-    Attributes:
-        cell_size (int): the cell and hash partition size
-        contents {tuple: list(tuple)}: key values pairs populated by insert_point
-        neighbors {tuple: tuple}: Hash partition neighbor lookup table
-    """
-    def __init__(self, cell_size: int=100) -> None:
-        self.cell_size = cell_size
-        self.contents = {}
-        self.hash_polygons = []
-
-    def _hash(self, point: Tuple[float, float]):
-        hash = int(point[0]/self.cell_size), int(point[1]/self.cell_size)
-        return hash
-
-    def insert_point(self, point: Tuple[float, float]) -> None:
-        hash_bin = self._hash(point)
-        hash_bin_polygon = Polygon([Point(hash_bin[0])])
-        self.contents.setdefault(hash_bin, []).append(point)
-
-class NearestNeighborIndex:
-    """
-    This is a class for performing nearest neighbor searches on points.
-
-    Atributes:
-        points (tuple(float, float)): The 2D array of points to be indexed.
-    """
-    def __init__(self, points: ValidPoint) -> None:
+    @staticmethod
+    def calculate_distance(point1: ValidPoint, point2: ValidPoint) -> float:
         """
-        Inits NearestNeighborIndex class.
-        Takes an array of 2d tuples (float, float) as input points to be indexed.
+        This method calculates the distance between two points.
 
-        :param points: The list of points to be indexed
-        :returns: None
-        :raises TypeError: Input list must be (float, float)
+        :param point1: The first point in a distance calculation.
+        :param point2: The second point in a distance calculation.
+        :returns: Returns the distance between point1 and point2 as a float.
         """
+        return float(sum((i-j)**2 for i, j in zip(point1, point2)))
+
+class NearestNeighbor():
+    def __init__(self, points: ValidPointsIterable) -> None:
         self.points = points
-        self.index = None
-        self.cell_size = None
-        try:
-            ValidPoint(points=self.points)
-        except ValidationError as e:
-            print(e.json())
-            raise TypeError("Incorrect data structure. Input must be List[Tuple[float, float]]")
-
-    def build_index(self, method: str='hash') -> None:
-        """
-        This method creates the spatial index for the points attribute of the
-        NearestNeighborIndex object.
-
-        :param str method: The spatial indexing method to be used. Default 'hash'
-        """
-        if method == 'hash':
-            sidx = SpatialHash()
-            for point in self.points:
-                sidx.insert_point(point)
-            self.index = sidx
-            self.cell_size = sidx.cell_size
-
-    def find_nearest_fast(self, query_point: Tuple[float, float]) -> Tuple:
-        query_point_hash = self.index._hash(query_point)
-        hash_bin_points = self.index.contents[query_point_hash]
-        nearest_neighbor = SpatialUtils.find_nearest_naive(query_point, hash_bin_points)
-        return nearest_neighbor
+    def build_index(self, method: str = "kdtree") -> None:
+        if method == "kdtree":
+            self.sidx = SpatialUtils()._build_kdtree(self.points)
+    def search_index(self, query_point: ValidPoint) -> ValidPoint:
+        result = SpatialUtils()._find_nearest_neighbor_kdtree(self.sidx, query_point)
+        return result
