@@ -75,7 +75,7 @@ class SpatialUtils:
             )
             return BTNode
 
-        # Recursively build the k-d tree starting at depth of 0
+        # Recursively build the k-d tree starting at root level
         tree = _build(points=list(points), depth=0)
         return tree
 
@@ -114,6 +114,7 @@ class SpatialUtils:
             if diff**2 < best.distance:
                 _search(tree=away, depth=depth+1)
 
+        # Recursively search the tree starting at root level
         _search(tree=tree, depth=0)
         return best.point
 
@@ -206,11 +207,13 @@ class NearestNeighbor:
         :returns: self
         """
         valid_methods = ['kdtree']
+        # Input spatial index method must be available
         if method not in valid_methods:
             raise ValueError(f"Error: sidx_type must be in ({valid_methods})")
         else:
             self.sidx_method = method
         if self.sidx_method == 'kdtree':
+            # Build the kd-tree spatial index
             self.sidx = SpatialUtils()._build_kdtree(self.points)
         return self
 
@@ -221,10 +224,12 @@ class NearestNeighbor:
 
         :param query_point: ValidPoint object from which to find the NN in the index
         """
+        # Validate the input point
         try:
             query_point = ValidPoint(point=query_point)
             query_point = query_point.point
         except ValidationError as e:
             print(e.json())
+        # Calculate the nearest neighbor in the spatial index to the input point
         result = SpatialUtils()._find_nearest_neighbor_kdtree(self.sidx, query_point)
         return result
