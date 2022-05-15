@@ -1,8 +1,15 @@
 import random
 import time
 import unittest
+import pandas as pd
+import os
+from pathlib import Path
 
 from pynn import NearestNeighbor, SpatialUtils
+
+# Generally you want unit tests that are self contained but in the name of
+# Expediency for this example, I am accesing the example_data CSV's.
+this_dir = Path(__file__).parent
 
 class NearestNeighborTest(unittest.TestCase):
 
@@ -66,3 +73,30 @@ class NearestNeighborTest(unittest.TestCase):
         print(f"Brute force approach time: {slow_time:0.2f}sec")
         print(f"Indexed approach time: {new_time:0.2f}sec")
         print(f"Speedup: {(slow_time / new_time):0.2f}x")
+
+    def test_spatial_example(self):
+        # Read in the spatial example data
+        user000 = pd.read_csv(os.path.join(this_dir.parent, 'example_data/data_000_track.csv'))
+        user179 = pd.read_csv(os.path.join(this_dir.parent, 'example_data/data_179_track.csv'))
+        # Lists for storing expected and actual NN results
+        expected = []
+        actual = []
+        # Build the index
+        user000_points = list(zip(user000.longitude, user000.latitude))
+        user179_points = list(zip(user179.longitude, user179.latitude))
+        sidx = NearestNeighbor(user179_points).build_index()
+        # Generate the brute force results
+        start = time.time()
+        for point in user000_points:
+            expected.append(SpatialUtils().find_nearest_naive(point, user179_points))
+        end = time.time()
+        brute_time = end-start
+        print(f"Trajectory example brute force time: {brute_time:0.2f}sec")
+        start = time.time()
+        for point in user000_points:
+            actual.append(sidx.search_index(point))
+        end = time.time()
+        index_time = end-start
+        print(f"Trajectory example indexed search time: {index_time:0.2f}sec")
+        print(f"Trajectory search speedup: {(brute_time/index_time):0.2f}x")
+        self.assertEqual(expected, actual)
