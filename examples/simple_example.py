@@ -1,3 +1,6 @@
+# Example data pulled from Microsoft Research 'Geolife' trajectory data set
+# https://www.microsoft.com/en-us/research/publication/geolife-gps-trajectory-dataset-user-guide/
+
 # Activate the environment for this example:
 # [~epgeo-ex/]$ source epgenv/bin/activate
 
