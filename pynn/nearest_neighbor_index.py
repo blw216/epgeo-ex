@@ -44,6 +44,8 @@ class SpatialUtils:
         calls the 'build' method to construct a k-d tree spatial index on the
         provided set of points.
 
+        Note: Algorithm adapted from https://en.wikipedia.org/wiki/K-d_tree
+
         :param points: Iterable of points as defined by the ValidPointsIterable
         class.
         :returns: K-dimensional binary tree as defined by the KDBinaryTree
@@ -60,7 +62,9 @@ class SpatialUtils:
             if len(points) == 0:
                 return None
 
+            # Selects the axis based on current depth
             points.sort(key=operator.itemgetter(depth % k))
+            # Grab the median point as the current pivot node
             middle = len(points) // 2
             BTNode = BT(
                 value = points[middle],
