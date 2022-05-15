@@ -18,5 +18,7 @@ user179_sindex = NearestNeighbor(user179_points).build_index()
 
 # For each point in user000, find the nearest point in user010
 user000['points'] = list(zip(user000.longitude, user000.latitude))
+# user179_nn column contains the point in user179 closest to the provided point
+# In each row from user000
 user000['user179_nn'] = user000.points.apply(lambda x: user179_sindex.search_index(x))
 print(user000.head())
