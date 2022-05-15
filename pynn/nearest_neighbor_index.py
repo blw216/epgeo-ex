@@ -34,13 +34,15 @@ class NNClosestNeighbor(BaseModel):
     NNRecord = collections.namedtuple("NNRecord", ["point", "distance"])
 
 class SpatialUtils:
-
+    """
+    This class contains several static methods that are spatial utilities.
+    """
     @staticmethod
     def _build_kdtree(points: ValidPointsIterable) -> KDBinaryTree:
         """
         This method defines the binary tree data structure and recursively
-        calls the 'build' method to construct a k-d tree spatial index on the provided
-        set of points.
+        calls the 'build' method to construct a k-d tree spatial index on the
+        provided set of points.
 
         :param points: Iterable of points as defined by the ValidPointsIterable
         class.
@@ -53,8 +55,7 @@ class SpatialUtils:
 
         def _build(points: ValidPointsIterable, depth: int):
             """
-            This function recursively constructs a k-dimensional tree from a
-            given set of points.
+            Recursively construct a k-dimensional tree from a given set of points.
             """
             if len(points) == 0:
                 return None
@@ -79,9 +80,10 @@ class SpatialUtils:
         return tree
 
     @staticmethod
-    def _find_nearest_neighbor_kdtree(tree: KDBinaryTree, point: ValidPoint) -> ValidPoint:
-        """Find the nearest neighbor in a k-d tree for a given
-        point.
+    def _find_nearest_neighbor_kdtree(tree: KDBinaryTree,
+                                        point: ValidPoint) -> ValidPoint:
+        """
+        PRIVATE - Find the nearest neighbor in a k-d tree for a given point.
         """
         k = len(point)
         NNRecord = collections.namedtuple("NNRecord", ["point", "distance"])
@@ -91,10 +93,11 @@ class SpatialUtils:
             """Recursively search through the k-d tree to find the
             nearest neighbor.
             """
+            # Need to access 'best' out of _search scope
             nonlocal best
 
             if tree is None:
-                return None
+               return None
 
             distance = SpatialUtils.calculate_distance(tree.value, point)
             if best is None or distance < best.distance:
@@ -115,20 +118,25 @@ class SpatialUtils:
         return best.point
 
     @staticmethod
-    def find_nearest_naive(query_point: ValidPoint, haystack: ValidPointsIterable) -> ValidPoint:
+    def find_nearest_naive(query_point: ValidPoint,
+                            haystack: ValidPointsIterable) -> ValidPoint:
         """
-        This naive method returns the point in the haystack that is closest to query_point.
-        This method was left unchanged to preserve integrity of the test(s).
+        This brute force method returns the point in the haystack that is
+        closest to query_point. This method was left unchanged - other than
+        type hinting - to preserve integrity of the test(s).
 
-        :param query_point: The origin point from which the closest point will be found
+        :param query_point: The origin point from which the closest point will
+        be searched for.
         :param haystack: The list of points to search against
+        :param validate: Boolean to determine input type validation. Causes
+        performance degradation.
         :returns: Returns the nearest point as a tuple.
         :raises TypeError: Input tuples must be (float, float)
         """
 
+        # Initialize minimum point and distance variables
         min_dist = None
         min_point = None
-
         # For each point in the haystack
         for point in haystack:
             if point != query_point:
@@ -151,20 +159,68 @@ class SpatialUtils:
         :param point2: The second point in a distance calculation.
         :returns: Returns the distance between point1 and point2 as a float.
         """
+        # Validate the input points
+        try:
+            point1 = ValidPoint(point=point1)
+            point2 = ValidPoint(point=point2)
+            point1 = point1.point
+            point2 = point2.point
+        except ValidationError as e:
+            print(e.json())
+        # Calculate and return the distance between two points
         return float(sum((i-j)**2 for i, j in zip(point1, point2)))
 
-class NearestNeighbor():
+class NearestNeighbor:
+    """
+    This class constructs a NearestNeighbor object from which an iterable
+    of points can be ingested, validated, and indexed using a kd-tree spatial
+    index for performant nearest neighbor queries.
+
+    Attributes:
+        points (ValidPointsIterable): the points that will be indexed.
+    """
     def __init__(self, points) -> None:
+        """
+        Initializes the NearestNeighbor class. performs input type validation
+        using the ValidPointsIterable Pydantic class.
+
+        :param points: The iterable of ValidPoint objects
+        :returns: None
+        :raises ValidationError: Input iterable must consist of [ValidPoint, ...]
+        """
+        # Validate the points iterable input
         try:
             points = ValidPointsIterable(points=points)
             self.points = points.points
         except ValidationError as e:
             print(e.json())
+
     def build_index(self, method: str = "kdtree") -> None:
-        if method == "kdtree":
+        """
+        This method builds the spatial index on the NearestNeighbor points
+        attribute, using a kd-tree method.
+
+        :param method: A string value declaring the spatial index method to be
+        used. Future extensions of this class may include more spatial indexing
+        methods.
+        :returns: self
+        """
+        valid_methods = ['kdtree']
+        if method not in valid_methods:
+            raise ValueError(f"Error: sidx_type must be in ({valid_methods})")
+        else:
+            self.sidx_method = method
+        if self.sidx_method == 'kdtree':
             self.sidx = SpatialUtils()._build_kdtree(self.points)
         return self
+
     def search_index(self, query_point: ValidPoint) -> ValidPoint:
+        """
+        This method searches the spatial index created by build_index and
+        returns the nearest neighbor in the index to the input query_point.
+
+        :param query_point: ValidPoint object from which to find the NN in the index
+        """
         try:
             query_point = ValidPoint(point=query_point)
             query_point = query_point.point

@@ -6,7 +6,7 @@ from pynn import NearestNeighbor, SpatialUtils
 
 class NearestNeighborTest(unittest.TestCase):
 
-    def test_basic(self):
+    def test_nearest_neighbor_result_accuracy(self):
         """
         This test compares a handful of NN index search results to several
         hard-coded correct values.
@@ -27,7 +27,7 @@ class NearestNeighborTest(unittest.TestCase):
         self.assertEqual((-1000, 20), uut.search_index((-2000, 0)))
         self.assertEqual((42, 3.14159), uut.search_index((40, 3)))
 
-    def test_benchmark(self):
+    def test_speed_benchmark(self):
         """
         This test demonstrates the optimization of the spatial index, and
         asserts that the list of nearest neighbors identified by the
@@ -50,7 +50,10 @@ class NearestNeighborTest(unittest.TestCase):
         slow_time = time.time() - start
 
         # Don't include the indexing time when benchmarking
+        start = time.time()
         uut = NearestNeighbor(index_points).build_index()
+        end = time.time()
+        print(f"Index time: {(end-start):0.2f}")
 
         # Run the indexed tests
         start = time.time()
@@ -60,6 +63,6 @@ class NearestNeighborTest(unittest.TestCase):
 
         # Assert that the list of actual nn values == expected nn values
         self.assertEqual(expected, actual)
-        print(f"slow time: {slow_time:0.2f}sec")
-        print(f"new time: {new_time:0.2f}sec")
-        print(f"speedup: {(slow_time / new_time):0.2f}x")
+        print(f"Brute force approach time: {slow_time:0.2f}sec")
+        print(f"Indexed approach time: {new_time:0.2f}sec")
+        print(f"Speedup: {(slow_time / new_time):0.2f}x")
